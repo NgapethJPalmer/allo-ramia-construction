@@ -25,7 +25,7 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+  <link rel="icon" type="image/png" href="favicon.png">
   
   <!-- Tailwind CSS Framework -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -230,13 +230,13 @@
     const firebaseApp = initializeApp(firebaseConfig);
     const firebaseDb = getFirestore(firebaseApp);
 
-    class AlloRamiaApp {
+   class AlloRamiaApp {
       constructor() {
-	    this.isOrdoLoading = false;
+        this.isOrdoLoading = false;
         this.currentView = 'home';
-        this.currentCountry = '';
-        this.currentCity = '';
-        this.currentDistrict = ''; 
+        this.currentCountry = localStorage.getItem('ramia_country') || 'CM';
+        this.currentCity = localStorage.getItem('ramia_city') || 'Douala';
+        this.currentDistrict = localStorage.getItem('ramia_district') || ''; 
         this.selectedTransport = 'all';
         this.map = null;
         this.mapMarkers = [];
@@ -249,20 +249,22 @@
         this.activeSearchController = null;
         this.detectedMedsList = [];
         this.isDiasporaMode = false;
-        this.currentTunnelStep = 1;
 
-        // TUNNEL DE COMMANDE V5 (ETAPES 1 A 6 COMPLETES)
-        this.tunnelData = {
+        // Récupération sécurisée du panier et du tunnel depuis le LocalStorage
+        this.cart = JSON.parse(localStorage.getItem('ramia_cart') || '[]');
+        this.currentTunnelStep = parseInt(localStorage.getItem('ramia_tunnel_step') || '1', 10);
+
+        const savedTunnelData = localStorage.getItem('ramia_tunnel_data');
+        this.tunnelData = savedTunnelData ? JSON.parse(savedTunnelData) : {
           step1_meds: [],
           step2_pharmacy: null,
-          step3_recoveryMode: 'LIVRAISON', // LIVRAISON vs RETRAIT
-          step4_transport: { type: 'yango_moto', name: 'Yango Moto', price: 1000 },
+          step3_recoveryMode: 'LIVRAISON',
+          step4_transport: { type: 'yango_moto', name: 'Yango Moto Express', price: 1000 },
           step5_beneficiary: { name: '', phone: '', address: '', notes: '', senderCountry: 'France' },
           step6_payment: { method: 'PAYER_LIVRAISON_CASH', status: 'PENDING' }
         };
 
-       
-     // BASE DE DONNEES GEOGRAPHIQUE INTERNATIONALE (CEEAC & AFRIQUE - MAX 8 VILLES PAR PAYS)
+        // BASE DE DONNEES GEOGRAPHIQUE INTERNATIONALE (CEEAC & AFRIQUE - 10 VILLES PAR PAYS)
         this.countryData = {
           'CM': {
             name: 'Cameroun', currency: 'XAF', phonePrefix: '+237',
@@ -275,7 +277,9 @@
               'Bamenda': { lat: 5.9631, lng: 10.1591 },
               'Maroua': { lat: 10.5910, lng: 14.3159 },
               'Ngaoundéré': { lat: 7.3195, lng: 13.5841 },
-              'Kribi': { lat: 2.9388, lng: 9.9077 }
+              'Kribi': { lat: 2.9388, lng: 9.9077 },
+              'Ebolowa': { lat: 2.9, lng: 11.15 },
+              'Bertoua': { lat: 4.5772, lng: 13.6844 }
             }
           },
           'TD': {
@@ -289,7 +293,9 @@
               'Kelo': { lat: 9.3096, lng: 15.8066 },
               'Doba': { lat: 8.6500, lng: 16.8500 },
               'Am Timan': { lat: 11.0297, lng: 20.2827 },
-              'Fada': { lat: 17.2167, lng: 21.5833 }
+              'Fada': { lat: 17.2167, lng: 21.5833 },
+              'Bongor': { lat: 10.278, lng: 15.372 },
+              'Pala': { lat: 9.364, lng: 14.904 }
             }
           },
           'CG': {
@@ -303,7 +309,9 @@
               'Owando': { lat: -0.4819, lng: 15.9047 },
               'Impfondo': { lat: 1.6291, lng: 18.0662 },
               'Mossendjo': { lat: -2.9461, lng: 12.7236 },
-              'Madingou': { lat: -4.1500, lng: 13.5500 }
+              'Madingou': { lat: -4.1500, lng: 13.5500 },
+              'Ouesso': { lat: 1.6136, lng: 16.0556 },
+              'Kinkala': { lat: -4.3631, lng: 14.7644 }
             }
           },
           'CD': {
@@ -317,35 +325,9 @@
               'Bukavu': { lat: -2.5083, lng: 28.8600 },
               'Mbuji-Mayi': { lat: -6.1500, lng: 23.6000 },
               'Kananga': { lat: -5.8962, lng: 22.4166 },
-              'Kolwezi': { lat: -10.7145, lng: 25.4667 }
-            }
-          },
-          'BJ': {
-            name: 'Bénin', currency: 'FCFA', phonePrefix: '+229',
-            paymentMethods: ['MTN MoMo', 'Moov Money', 'Espèces'],
-            cities: {
-              'Cotonou': { lat: 6.3654, lng: 2.4183 },
-              'Porto-Novo': { lat: 6.4969, lng: 2.6288 },
-              'Parakou': { lat: 9.3371, lng: 2.6303 },
-              'Abomey': { lat: 7.1829, lng: 1.9912 },
-              'Natitingou': { lat: 10.3042, lng: 1.3796 },
-              'Bohicon': { lat: 7.1783, lng: 2.0667 },
-              'Ouidah': { lat: 6.3631, lng: 2.0851 },
-              'Lokossa': { lat: 6.6389, lng: 1.7167 }
-            }
-          },
-          'ML': {
-            name: 'Mali', currency: 'FCFA', phonePrefix: '+223',
-            paymentMethods: ['Orange Money', 'Moov Africa', 'Espèces'],
-            cities: {
-              'Bamako': { lat: 12.6392, lng: -8.0029 },
-              'Sikasso': { lat: 11.3175, lng: -5.6665 },
-              'Mopti': { lat: 14.4843, lng: -4.1994 },
-              'Koutiala': { lat: 12.3917, lng: -5.4642 },
-              'Ségou': { lat: 13.4317, lng: -6.2617 },
-              'Kayes': { lat: 14.4469, lng: -11.4445 },
-              'Gao': { lat: 16.2716, lng: -0.0447 },
-              'Tombouctou': { lat: 16.7735, lng: -3.0074 }
+              'Kolwezi': { lat: -10.7145, lng: 25.4667 },
+              'Matadi': { lat: -5.8178, lng: 13.4565 },
+              'Likasi': { lat: -10.9814, lng: 26.7333 }
             }
           },
           'GA': {
@@ -359,91 +341,9 @@
               'Moanda': { lat: -1.5650, lng: 13.1983 },
               'Mouila': { lat: -1.8689, lng: 11.0559 },
               'Lambaréné': { lat: -0.7000, lng: 10.2400 },
-              'Tchibanga': { lat: -2.9247, lng: 11.0022 }
-            }
-          },
-          'GQ': {
-            name: 'Guinée Équatoriale', currency: 'XAF', phonePrefix: '+240',
-            paymentMethods: ['Carte Bancaire', 'Espèces'],
-            cities: {
-              'Malabo': { lat: 3.7504, lng: 8.7371 },
-              'Bata': { lat: 1.8639, lng: 9.7658 },
-              'Ebebiyin': { lat: 2.1523, lng: 11.3344 },
-              'Mongomo': { lat: 1.6244, lng: 11.3139 },
-              'Aconibe': { lat: 1.2978, lng: 10.9353 },
-              'Anisok': { lat: 1.8658, lng: 10.7817 },
-              'Evinayong': { lat: 1.4372, lng: 10.5517 },
-              'Luba': { lat: 3.4564, lng: 8.5550 }
-            }
-          },
-          'CF': {
-            name: 'République Centrafricaine (RCA)', currency: 'XAF', phonePrefix: '+236',
-            paymentMethods: ['Orange Money', 'Moov Money', 'Espèces'],
-            cities: {
-              'Bangui': { lat: 4.3947, lng: 18.5582 },
-              'Berbérati': { lat: 4.2561, lng: 15.7921 },
-              'Bouar': { lat: 5.9340, lng: 15.5960 },
-              'Bambari': { lat: 5.7680, lng: 20.6754 },
-              'Carnot': { lat: 4.9458, lng: 15.8764 },
-              'Kaga-Bandoro': { lat: 7.0049, lng: 19.1878 },
-              'Bangassou': { lat: 4.7413, lng: 22.8184 },
-              'Mbaïki': { lat: 3.8636, lng: 17.9899 }
-            }
-          },
-          'AO': {
-            name: 'Angola (CEEAC)', currency: 'AOA', phonePrefix: '+244',
-            paymentMethods: ['Multicaixa', 'Virement', 'Espèces'],
-            cities: {
-              'Luanda': { lat: -8.8399, lng: 13.2894 },
-              'Huambo': { lat: -12.7761, lng: 15.7392 },
-              'Lobito': { lat: -12.3644, lng: 13.5456 },
-              'Benguela': { lat: -12.5792, lng: 13.4055 },
-              'Lubango': { lat: -14.9172, lng: 13.4925 },
-              'Malanje': { lat: -9.5402, lng: 16.3410 },
-              'Namibe': { lat: -15.1961, lng: 12.1522 },
-              'Soyo': { lat: -6.1349, lng: 12.3689 }
-            }
-          },
-          'BI': {
-            name: 'Burundi (CEEAC)', currency: 'BIF', phonePrefix: '+257',
-            paymentMethods: ['Ecocash', 'Lumicash', 'Espèces'],
-            cities: {
-              'Bujumbura': { lat: -3.3822, lng: 29.3644 },
-              'Gitega': { lat: -3.4275, lng: 29.9246 },
-              'Ngozi': { lat: -2.9075, lng: 29.8286 },
-              'Bururi': { lat: -3.9500, lng: 29.6250 },
-              'Makamba': { lat: -4.3847, lng: 29.8008 },
-              'Muyinga': { lat: -2.8451, lng: 30.3414 },
-              'Rutana': { lat: -3.9311, lng: 29.9922 },
-              'Ruyigi': { lat: -3.4760, lng: 30.2456 }
-            }
-          },
-          'RW': {
-            name: 'Rwanda (CEEAC)', currency: 'RWF', phonePrefix: '+250',
-            paymentMethods: ['MTN Mobile Money', 'Airtel Money', 'Espèces'],
-            cities: {
-              'Kigali': { lat: -1.9441, lng: 30.0619 },
-              'Butare': { lat: -2.5967, lng: 29.7394 },
-              'Gisenyi': { lat: -1.7028, lng: 29.2564 },
-              'Ruhengeri': { lat: -1.5000, lng: 29.6333 },
-              'Byumba': { lat: -1.5778, lng: 30.0667 },
-              'Gitarama': { lat: -2.0744, lng: 29.7567 },
-              'Nyanza': { lat: -2.3525, lng: 29.7456 },
-              'Cyangugu': { lat: -2.4847, lng: 28.9078 }
-            }
-          },
-          'ST': {
-            name: 'Sao Tomé-et-Principe (CEEAC)', currency: 'STN', phonePrefix: '+239',
-            paymentMethods: ['Carte Bancaire', 'Espèces'],
-            cities: {
-              'São Tomé': { lat: 0.3302, lng: 6.7333 },
-              'Trindade': { lat: 0.2667, lng: 6.6500 },
-              'Neves': { lat: 0.3667, lng: 6.5500 },
-              'Santana': { lat: 0.2333, lng: 6.7500 },
-              'Guadalupe': { lat: 0.3833, lng: 6.5833 },
-              'Santo António': { lat: 1.6381, lng: 7.4208 },
-              'Porto Alegre': { lat: 0.0333, lng: 6.5333 },
-              'Ribeira Afoga': { lat: 0.2000, lng: 6.7167 }
+              'Tchibanga': { lat: -2.9247, lng: 11.0022 },
+              'Koulamoutou': { lat: -1.1283, lng: 12.4736 },
+              'Makokou': { lat: 0.5738, lng: 12.8647 }
             }
           },
           'CI': {
@@ -457,70 +357,38 @@
               'Daloa': { lat: 6.8770, lng: -6.4503 },
               'Korhogo': { lat: 9.4580, lng: -5.6296 },
               'Man': { lat: 7.4125, lng: -7.5538 },
-              'Gagnoa': { lat: 6.1319, lng: -5.9506 }
-            }
-          },
-          'GH': {
-            name: 'Ghana', currency: 'GHS', phonePrefix: '+233',
-            paymentMethods: ['MTN MoMo', 'Vodafone Cash', 'AirtelTigo Money'],
-            cities: {
-              'Accra': { lat: 5.6037, lng: -0.1870 },
-              'Kumasi': { lat: 6.6885, lng: -1.6244 },
-              'Tamale': { lat: 9.4075, lng: -0.8534 },
-              'Takoradi': { lat: 4.8845, lng: -1.7554 },
-              'Cape Coast': { lat: 5.1053, lng: -1.2466 },
-              'Sunyani': { lat: 7.3399, lng: -2.3231 },
-              'Ho': { lat: 6.6101, lng: 0.4713 },
-              'Koforidua': { lat: 6.0905, lng: -0.2554 }
-            }
-          },
-          'NG': {
-            name: 'Nigeria', currency: 'NGN', phonePrefix: '+234',
-            paymentMethods: ['Paystack', 'Virement Bancaire', 'USSD'],
-            cities: {
-              'Lagos': { lat: 6.5244, lng: 3.3792 },
-              'Abuja': { lat: 9.0765, lng: 7.3986 },
-              'Port Harcourt': { lat: 4.8156, lng: 7.0498 },
-              'Kano': { lat: 12.0022, lng: 8.5920 },
-              'Ibadan': { lat: 7.3775, lng: 3.9470 },
-              'Benin City': { lat: 6.3350, lng: 5.6037 },
-              'Kaduna': { lat: 10.5105, lng: 7.4165 },
-              'Enugu': { lat: 6.4584, lng: 7.5464 }
-            }
-          },
-          'SN': {
-            name: 'Sénégal', currency: 'FCFA', phonePrefix: '+221',
-            paymentMethods: ['Orange Money', 'Free Money', 'Wizall', 'Wave'],
-            cities: {
-              'Dakar': { lat: 14.7167, lng: -17.4677 },
-              'Thiès': { lat: 14.7910, lng: -16.9259 },
-              'Saint-Louis': { lat: 16.0179, lng: -16.4896 },
-              'Ziguinchor': { lat: 12.5605, lng: -16.2719 },
-              'Kaolack': { lat: 14.1500, lng: -16.0833 },
-              'Touba': { lat: 14.8670, lng: -15.8833 },
-              'Diourbel': { lat: 14.6500, lng: -16.2333 },
-              'Tambacounda': { lat: 13.7539, lng: -13.6690 }
+              'Gagnoa': { lat: 6.1319, lng: -5.9506 },
+              'Divo': { lat: 5.844, lng: -5.357 },
+              'Abengourou': { lat: 6.729, lng: -3.496 }
             }
           }
         };
 
-        // CATALOGUE DE REFERENCE LABOREX (200 MEDICAMENTS ESSENTIELS EN DUR)
         this.laborexCatalog = window.LABOREX_CATALOGUE || [];
-        this.cart = [];
         this.cleanExpiredCache();
       }
 
-      init() {
+      saveState() {
+        localStorage.setItem('ramia_cart', JSON.stringify(this.cart));
+        localStorage.setItem('ramia_tunnel_step', this.currentTunnelStep.toString());
+        localStorage.setItem('ramia_tunnel_data', JSON.stringify(this.tunnelData));
+        localStorage.setItem('ramia_country', this.currentCountry);
+        localStorage.setItem('ramia_city', this.currentCity);
+        localStorage.setItem('ramia_district', this.currentDistrict);
+      }
+	  
+	  
+init() {
         this.updateCartBadge();
-        this.syncHeaderSelector();
-        this.renderCityDropdown();
         
-        // 1. Lancement silencieux de la géolocalisation et des pharmacies en arrière-plan
+        // On active l'état de chargement pour que les Pulse Cards s'affichent dès l'arrivée sur l'accueil
+        this.isLoadingPharmacies = true;
+
+        // Lancement de la géolocalisation en arrière-plan pendant le Splash Screen
         this.autoDetectUserLocation(() => {
           this.fetchRealPharmaciesOSM(3500);
         });
 
-        // 2. Après 5 secondes : suppression définitive du Splash Screen et affichage
         setTimeout(() => {
           const splash = document.getElementById('splash-screen');
           if (splash) splash.remove();
@@ -704,7 +572,7 @@
         if (badgeCityHeader) badgeCityHeader.textContent = this.currentCity || 'Non détecté';
       }
 
-      navigateTo(view) {
+     navigateTo(view) {
         this.currentView = view;
         const container = document.getElementById('view-container');
         if (!container) return;
@@ -726,18 +594,21 @@
           viewHTML = this.renderCompteView();
         }
 
-       container.innerHTML = viewHTML;
-
+        container.innerHTML = viewHTML;
 
         if (view === 'home') {
-          setTimeout(() => {
+          // Utilisation de requestAnimationFrame pour garantir que le DOM est prêt
+          requestAnimationFrame(() => {
+            this.syncHeaderSelector();
+            this.renderCityDropdown(); // Remplit instantanément les villes du pays !
             this.initMap();
-            this.updateMapAndCards();
+            this.updateMapAndCards();  // Affiche les Pulse Cards si le chargement est en cours !
+            
             const districtInput = document.getElementById('district-input');
             if (districtInput && this.currentDistrict) {
               districtInput.value = this.currentDistrict;
             }
-          }, 200);
+          });
         }
       }
 
@@ -775,7 +646,9 @@
       }
 
       // 1. VUE ACCUEIL
-      renderHomeView() {
+   renderHomeView() {
+        const isLoading = this.isLoadingPharmacies;
+
         return `
           <div class="space-y-6">
             <div class="bg-gradient-to-r from-[#6B125C] via-[#851264] to-[#A1197A] rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-3 border border-pink-300/30">
@@ -791,10 +664,21 @@
               </button>
             </div>
 
-            <div class="bg-gradient-to-r from-[#6B125C] to-[#A1197A] rounded-2xl p-5 sm:p-7 text-white shadow-xl space-y-4">
+            <!-- BLOC DE RECHERCHE PRINCIPAL ET ANIMATION PULSE SUPERIEURE -->
+            <div class="bg-gradient-to-r from-[#6B125C] to-[#A1197A] rounded-2xl p-5 sm:p-7 text-white shadow-xl space-y-4 relative overflow-hidden">
+              
+              <!-- BANDEAU PULSE ANIMÉ EN HAUT DE RECHERCHE -->
               <div class="flex items-center justify-between">
-                <span class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">📍 Point de livraison & Pharmacie à proximité</span>
-                <span id="header-city-badge" class="text-xs font-mono bg-pink-900/50 px-2.5 py-1 rounded-lg text-pink-200 font-bold">${this.currentCity || 'Position non définie'}</span>
+                <span class="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-300 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
+                  </span>
+                  <span>📍 Point de livraison & Pharmacie à proximité</span>
+                </span>
+                <span id="header-city-badge" class="text-xs font-mono bg-pink-900/50 px-2.5 py-1 rounded-lg text-pink-200 font-bold">
+                  ${this.currentCity || 'Détection en cours...'}
+                </span>
               </div>
 
               <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">Trouvez vos médicaments disponibles 24/7.</h2>
@@ -802,7 +686,8 @@
               
               <div class="bg-white/10 p-4 rounded-xl backdrop-blur-md space-y-3 border border-white/20">
                 <div class="flex flex-col sm:flex-row gap-2">
-                  <input type="text" id="search-input" value="${this.searchedMedicine}" placeholder="Saisir le médicament (ex: Doliprane, Amoxil, Efferalgan)..." class="flex-1 px-4 py-2.5 text-xs text-slate-800 bg-white rounded-xl focus:outline-none shadow-inner">
+                  <input type="text" id="search-input" value="${this.searchedMedicine}" onkeydown="if(event.key==='Enter') window.app.performSearch()" placeholder="Saisir le médicament (ex: Doliprane, Amoxil, Efferalgan)..." class="flex-1 px-4 py-2.5 text-xs text-slate-800 bg-white rounded-xl focus:outline-none shadow-inner">
+
                   <div class="flex gap-2">
                     <button id="search-btn" onclick="window.app.performSearch()" class="flex-1 sm:flex-none bg-white text-[#6B125C] px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-pink-50 transition shadow flex items-center justify-center space-x-2">
                       <i class="fa-solid fa-magnifying-glass"></i>
@@ -815,8 +700,11 @@
                   </div>
                 </div>
 
+                <!-- INDICATEUR DE STATUT INTERACTIF APPARENT -->
                 <div class="flex items-center justify-between text-[10px] text-pink-100/90 pt-0.5">
-                  <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-amber-300"></i> Interrogation API Geoapify & Grossistes Laborex</span>
+                  <span id="search-status-text" class="flex items-center gap-1">
+                    <i class="fa-solid fa-bolt text-amber-300"></i> Interrogation API Geoapify & Grossistes Laborex
+                  </span>
                   <span class="opacity-80">Validation Express WhatsApp 2 min</span>
                 </div>
                 
@@ -851,7 +739,7 @@
 
                   <div class="flex items-center space-x-2">
                     <span class="text-pink-100 font-semibold shrink-0">Quartier :</span>
-                    <input type="text" id="district-input" value="${this.currentDistrict}" onchange="window.app.currentDistrict = this.value" placeholder="ex: Akwa, Bastos..." class="flex-1 px-3 py-1.5 text-xs text-slate-800 bg-white rounded-lg focus:outline-none">
+                    <input type="text" id="district-input" value="${this.currentDistrict}" onchange="window.app.currentDistrict = this.value" onkeydown="if(event.key==='Enter') window.app.performSearch()" placeholder="ex: Akwa, Bastos..." class="flex-1 px-3 py-1.5 text-xs text-slate-800 bg-white rounded-lg focus:outline-none">
                   </div>
                 </div>
               </div>
@@ -1079,50 +967,59 @@
               <button onclick="window.app.setTunnelStep(4)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 4 (Choix Transporteur) →</button>
             </div>
           `;
-        } else if (step === 4) {
+        }  else if (step === 4) {
           return `
-            <h3 class="font-bold text-slate-800 text-sm">Étape 4 : Choix du Transporteur & Calcul Domicile</h3>
-            <p class="text-xs text-slate-500">Intégration temps réel du routing Yango Moto, Yango Taxi et Gozem.</p>
+            <h3 class="font-bold text-slate-800 text-sm">Étape 4 : Choix du Transporteur & Tarification Bimodale</h3>
+            <p class="text-xs text-slate-500">Sélectionnez le mode de livraison adapté avec des tarifs clairement différenciés :</p>
             <div class="space-y-3">
-              <div onclick="window.app.tunnelData.step4_transport={type:'yango_moto', name:'Yango Moto Express', price:1000}; window.app.showToast('Yango Moto sélectionné');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer">
+              
+              <!-- Option 1 : Yango Moto -->
+              <div onclick="window.app.tunnelData.step4_transport={type:'yango_moto', name:'Yango Moto Express', price:1000}; window.app.showToast('Yango Moto sélectionné (1 000 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
                 <div>
                   <h4 class="font-bold text-xs text-slate-800">🛵 Yango Moto Express (Option « Meilleur Choix »)</h4>
-                  <p class="text-[11px] text-slate-500">Livraison ultra-rapide par coursier moto - 25 min</p>
+                  <p class="text-[11px] text-slate-500">Livraison ultra-rapide par coursier moto - ~25 min</p>
                 </div>
                 <span class="font-bold text-xs text-[#6B125C]">1 000 ${currencyLabel}</span>
               </div>
-              <div onclick="window.app.tunnelData.step4_transport={type:'yango_taxi', name:'Yango Taxi Confort', price:2500}; window.app.showToast('Yango Taxi sélectionné');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer">
-                <div>
-                  <h4 class="font-bold text-xs text-slate-800">🚕 Yango Taxi Confort</h4>
-                  <p class="text-[11px] text-slate-500">Idéal pour les volumes importants et sérum fragile</p>
-                </div>
-                <span class="font-bold text-xs text-[#6B125C]">2 500 ${currencyLabel}</span>
-              </div>
-              <div onclick="window.app.tunnelData.step4_transport={type:'gozem', name:'Gozem Logistics', price:1200}; window.app.showToast('Gozem sélectionné');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer">
+
+              <!-- Option 2 : Gozem -->
+              <div onclick="window.app.tunnelData.step4_transport={type:'gozem', name:'Gozem Logistics', price:1200}; window.app.showToast('Gozem sélectionné (1 200 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
                 <div>
                   <h4 class="font-bold text-xs text-slate-800">🏍️ Gozem Course Sécurisée</h4>
-                  <p class="text-[11px] text-slate-500">Couverture étendue zones périurbaines</p>
+                  <p class="text-[11px] text-slate-500">Couverture étendue zones périurbaines & caisson sécurisé</p>
                 </div>
                 <span class="font-bold text-xs text-[#6B125C]">1 200 ${currencyLabel}</span>
               </div>
+
+              <!-- Option 3 : Yango Taxi -->
+              <div onclick="window.app.tunnelData.step4_transport={type:'yango_taxi', name:'Yango Taxi Confort', price:1500}; window.app.showToast('Yango Taxi sélectionné (1 500 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
+                <div>
+                  <h4 class="font-bold text-xs text-slate-800">🚕 Yango Taxi Confort (Voiture)</h4>
+                  <p class="text-[11px] text-slate-500">Idéal pour les gros volumes de médicaments ou produits fragiles</p>
+                </div>
+                <span class="font-bold text-xs text-[#6B125C]">1 500 ${currencyLabel}</span>
+              </div>
+
             </div>
             <div class="flex justify-between pt-4">
               <button onclick="window.app.setTunnelStep(3)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.setTunnelStep(5)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 5 (Destinataire) →</button>
+              <button onclick="window.app.saveState(); window.app.setTunnelStep(5);" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 5 (Destinataire) →</button>
             </div>
           `;
         } else if (step === 5) {
+          const countryPrefix = (this.countryData[this.currentCountry] || {}).phonePrefix || '+237';
           return `
             <h3 class="font-bold text-slate-800 text-sm">Étape 5 : Coordonnées du Destinataire (Local ou Diaspora)</h3>
-            <p class="text-xs text-slate-500">Renseignez les informations de la personne qui recevra les médicaments sur place.</p>
+            <p class="text-xs text-slate-500">Renseignez les informations de la personne qui recevra les médicaments sur place (Indicatif requis : ${countryPrefix}).</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <input type="text" id="tunnel-name" placeholder="Nom complet du bénéficiaire" value="${this.tunnelData.step5_beneficiary.name}" onchange="window.app.tunnelData.step5_beneficiary.name = this.value" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-              <input type="tel" id="tunnel-phone" placeholder="Téléphone WhatsApp (+237...)" value="${this.tunnelData.step5_beneficiary.phone}" onchange="window.app.tunnelData.step5_beneficiary.phone = this.value" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <input type="tel" id="tunnel-phone" placeholder="Téléphone WhatsApp (${countryPrefix}...)" value="${this.tunnelData.step5_beneficiary.phone}" onchange="window.app.tunnelData.step5_beneficiary.phone = this.value" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
             </div>
             <textarea id="tunnel-address" placeholder="Adresse complète et repères visuels (ex: Face Boulangerie Akwa)..." onchange="window.app.tunnelData.step5_beneficiary.address = this.value" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs h-20">${this.tunnelData.step5_beneficiary.address}</textarea>
+            
             <div class="flex justify-between pt-4">
               <button onclick="window.app.setTunnelStep(4)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.setTunnelStep(6)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 6 (Récapitulatif & Paiement) →</button>
+              <button onclick="window.app.validateAndProceedStep5()" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 6 (Récapitulatif) →</button>
             </div>
           `;
         } else if (step === 6) {
@@ -1516,7 +1413,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(this.map);
       }
 
-      getCurrentGPSLocation() {
+    getCurrentGPSLocation() {
         if (this.activeSearchController) {
           this.activeSearchController.abort();
           this.activeSearchController = null;
@@ -1527,7 +1424,16 @@
           btn.disabled = true;
           icon.className = "fa-solid fa-circle-notch fa-spin text-pink-700";
         }
-        this.isLoadingPharmacies = false;
+        
+        // Active le chargement et scroll vers les Pulse Cards
+        this.isLoadingPharmacies = true;
+        this.updateMapAndCards();
+
+        const pharmaciesGrid = document.getElementById('pharmacies-grid');
+        if (pharmaciesGrid) {
+          pharmaciesGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         this.autoDetectUserLocation(() => {
           this.renderCityDropdown();
           const districtInput = document.getElementById('district-input');
@@ -1541,7 +1447,7 @@
         });
       }
 
-      async performSearch() {
+   async performSearch() {
         const input = document.getElementById('search-input');
         const districtInput = document.getElementById('district-input');
         
@@ -1578,8 +1484,16 @@
           this.currentDistrict = districtInput.value.trim();
         }
 
+        // Active immédiatement le chargement et affiche les Pulse Cards
         this.isLoadingPharmacies = true;
         this.setSearchStateLoading();
+        this.updateMapAndCards();
+
+        // SCROLL AUTOMATIQUE DOUX VERS LA SECTION DES RÉSULTATS (POUR VOIR LES PULSE CARDS)
+        const pharmaciesGrid = document.getElementById('pharmacies-grid');
+        if (pharmaciesGrid) {
+          pharmaciesGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
 
         if (this.currentDistrict !== "") {
           const countryName = this.countryData[this.currentCountry]?.name || "Cameroun";
@@ -1624,24 +1538,35 @@
         this.resetSearchButtons();
       }
 
-      setSearchStateLoading() {
+     setSearchStateLoading() {
         const searchBtn = document.getElementById('search-btn');
         const stopBtn = document.getElementById('stop-btn');
+        const statusText = document.getElementById('search-status-text');
+        
         if (searchBtn) {
           searchBtn.disabled = true;
-          searchBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-sm"></i><span>Recherche...</span>`;
+          searchBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-sm text-[#6B125C]"></i><span>Recherche...</span>`;
         }
         if (stopBtn) stopBtn.classList.remove('hidden');
+        if (statusText) {
+          statusText.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> <strong class="text-white">Géolocalisation & détection des officines en cours...</strong>`;
+        }
       }
+	  
 
-      resetSearchButtons() {
+     resetSearchButtons() {
         const searchBtn = document.getElementById('search-btn');
         const stopBtn = document.getElementById('stop-btn');
+        const statusText = document.getElementById('search-status-text');
+        
         if (searchBtn) {
           searchBtn.disabled = false;
           searchBtn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i><span>Rechercher</span>`;
         }
         if (stopBtn) stopBtn.classList.add('hidden');
+        if (statusText) {
+          statusText.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> Interrogation API Geoapify & Grossistes Laborex`;
+        }
       }
 
       async fetchRealPharmaciesOSM(radius = 3500, forceRefresh = false) {
@@ -1758,11 +1683,39 @@
         const pharmaciesContainer = document.getElementById('pharmacies-grid');
         if (!pharmaciesContainer) return;
 
+        // 1. SCROLL AUTOMATIQUE DOUX SYSTÉMATIQUE DÈS QUE LE CHARGEMENT DES PHARMACIES COMMENCE
         if (this.isLoadingPharmacies) {
+          pharmaciesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+          // 2. AFFICHAGE DES PULSE CARDS ANIMÉES
           pharmaciesContainer.innerHTML = `
-            <div class="p-8 text-center space-y-2">
-              <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#6B125C]"></i>
-              <p class="text-xs text-slate-500">Recherche des officines et calcul des distances routières...</p>
+            <div class="space-y-4">
+              <div class="p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 rounded-2xl border border-pink-200/60 shadow-sm animate-pulse flex items-center justify-between">
+                <div class="space-y-2 flex-1">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-base animate-bounce">💊</span>
+                    <div class="h-4 bg-pink-200/80 rounded-full w-48"></div>
+                  </div>
+                  <div class="h-3 bg-pink-100 rounded-full w-3/4"></div>
+                  <div class="h-3 bg-pink-100/60 rounded-full w-1/2"></div>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-pink-200/60 flex items-center justify-center shrink-0">
+                  <i class="fa-solid fa-heart-pulse text-[#6B125C] animate-ping text-sm"></i>
+                </div>
+              </div>
+
+              <div class="p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 rounded-2xl border border-pink-200/60 shadow-sm animate-pulse flex items-center justify-between opacity-80">
+                <div class="space-y-2 flex-1">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-base animate-bounce" style="animation-delay: 0.2s;">🏥</span>
+                    <div class="h-4 bg-pink-200/80 rounded-full w-40"></div>
+                  </div>
+                  <div class="h-3 bg-pink-100 rounded-full w-2/3"></div>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-pink-200/60 flex items-center justify-center shrink-0">
+                  <i class="fa-solid fa-prescription-bottle-medical text-[#6B125C] animate-pulse text-sm"></i>
+                </div>
+              </div>
             </div>
           `;
           return;
@@ -1829,7 +1782,7 @@
             `;
           }
 
-          return `
+         return `
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-3 hover:border-pink-200 transition">
               <div class="flex justify-between items-start">
                 <div>
@@ -1854,8 +1807,8 @@
             </div>
           `;
         }).join('');
-      }
-    }
+      }}
+    
 
     // INITIALISATION APPLICATIVE GLOBALE
     document.addEventListener("DOMContentLoaded", () => {
