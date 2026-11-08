@@ -249,6 +249,7 @@
         this.activeSearchController = null;
         this.detectedMedsList = [];
         this.isDiasporaMode = false;
+		this.cart = JSON.parse(localStorage.getItem('ramia_cart') || '[]');
 
         // Récupération sécurisée du panier et du tunnel depuis le LocalStorage
         this.cart = JSON.parse(localStorage.getItem('ramia_cart') || '[]');
@@ -263,6 +264,7 @@
           step5_beneficiary: { name: '', phone: '', address: '', notes: '', senderCountry: 'France' },
           step6_payment: { method: 'PAYER_LIVRAISON_CASH', status: 'PENDING' }
         };
+	
 
         // BASE DE DONNEES GEOGRAPHIQUE INTERNATIONALE (CEEAC & AFRIQUE - 10 VILLES PAR PAYS)
         this.countryData = {
@@ -367,6 +369,12 @@
         this.laborexCatalog = window.LABOREX_CATALOGUE || [];
         this.cleanExpiredCache();
       }
+	  	selectTransportOption(type, name, price) {
+        this.tunnelData.step4_transport = { type, name, price };
+        this.saveState();
+        this.showToast(`${name} sélectionné (${price} XAF)`);
+        this.navigateTo('tunnel');
+      }
 
       saveState() {
         localStorage.setItem('ramia_cart', JSON.stringify(this.cart));
@@ -400,7 +408,7 @@ init() {
           }
 
           this.navigateTo('home');
-        }, 5000);
+        }, 3000);
       }
 
       showToast(msg) {
@@ -682,7 +690,7 @@ init() {
               </div>
 
               <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">Trouvez vos médicaments disponibles 24/7.</h2>
-              <p class="text-xs text-pink-100">Détection par géolocalisation GPS autour de votre adresse ou quartier du destinataire.</p>
+              <p class="text-xs text-pink-100">Détection par géolocalisation GPS autour de votre adresse de livraison ou quartier du destinataire.</p>
               
               <div class="bg-white/10 p-4 rounded-xl backdrop-blur-md space-y-3 border border-white/20">
                 <div class="flex flex-col sm:flex-row gap-2">
@@ -738,7 +746,7 @@ init() {
                   </div>
 
                   <div class="flex items-center space-x-2">
-                    <span class="text-pink-100 font-semibold shrink-0">Quartier :</span>
+                    <span class="text-pink-100 font-semibold shrink-0">Quartier / Adresse de livraison :</span>
                     <input type="text" id="district-input" value="${this.currentDistrict}" onchange="window.app.currentDistrict = this.value" onkeydown="if(event.key==='Enter') window.app.performSearch()" placeholder="ex: Akwa, Bastos..." class="flex-1 px-3 py-1.5 text-xs text-slate-800 bg-white rounded-lg focus:outline-none">
                   </div>
                 </div>
@@ -867,7 +875,8 @@ init() {
         }, 250);
       }
 
-      // 3. VUE TUNNEL DE COMMANDE V5
+      
+    // 3. VUE TUNNEL DE COMMANDE V5 (REDUIT A 5 ÉTAPES)
       renderTunnelView() {
         const currencyLabel = (this.countryData[this.currentCountry] || {}).currency || 'XAF';
         const step = this.currentTunnelStep;
@@ -876,16 +885,15 @@ init() {
           <div class="max-w-7xl w-full mx-auto space-y-6">
             <div class="bg-white rounded-2xl border border-brand-border p-5 shadow-sm space-y-4">
               <div class="flex items-center justify-between">
-                <h2 class="text-base font-bold text-[#6B125C]">Tunnel de Commande V5 (Étape ${step} sur 6)</h2>
+                <h2 class="text-base font-bold text-[#6B125C]">Tunnel de Commande V5 (Étape ${step} sur 5)</h2>
                 <span class="text-xs font-bold px-3 py-1 bg-pink-100 text-[#6B125C] rounded-full">Procédure Sécurisée Allo Ramia</span>
               </div>
-              <div class="grid grid-cols-6 gap-2 text-center text-[10px] font-bold">
+              <div class="grid grid-cols-5 gap-2 text-center text-[10px] font-bold">
                 <div class="${step >= 1 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">1. Médicaments</div>
                 <div class="${step >= 2 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">2. Officine</div>
-                <div class="${step >= 3 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">3. Mode</div>
-                <div class="${step >= 4 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">4. Transport</div>
-                <div class="${step >= 5 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">5. Destinataire</div>
-                <div class="${step >= 6 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">6. Validation</div>
+                <div class="${step >= 3 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">3. Mode & Transport</div>
+                <div class="${step >= 4 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">4. Destinataire</div>
+                <div class="${step >= 5 ? 'bg-[#6B125C] text-white' : 'bg-slate-100 text-slate-400'} py-2 rounded-lg">5. Validation</div>
               </div>
             </div>
 
@@ -895,8 +903,7 @@ init() {
           </div>
         `;
       }
-
-      renderTunnelStepContent(step, currencyLabel) {
+renderTunnelStepContent(step, currencyLabel) {
         if (step === 1) {
           return `
             <h3 class="font-bold text-slate-800 text-sm">Étape 1 : Choix des Médicaments & Produits</h3>
@@ -918,99 +925,139 @@ init() {
             </div>
           `;
         } else if (step === 2) {
+          // AFFICHAGE DYNAMIQUE DES VRAIES PHARMACIES DÉTECTÉES
+          const hasPharmacies = this.realPharmacies && this.realPharmacies.length > 0;
+          const selectedPharm = this.tunnelData.step2_pharmacy;
+
           return `
             <h3 class="font-bold text-slate-800 text-sm">Étape 2 : Sélection de l'Officine & Pharmacie de Garde</h3>
-            <p class="text-xs text-slate-500">Choisissez la pharmacie la plus proche pour la mise à disposition des produits.</p>
+            <p class="text-xs text-slate-500">Sélectionnez l'officine partenaire qui préparera votre commande à ${this.currentCity}.</p>
+            
             <div class="space-y-3">
-              <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 cursor-pointer" onclick="window.app.tunnelData.step2_pharmacy='Pharmacie Akwa Centre'; window.app.showToast('Officine Akwa sélectionnée');">
-                <div class="flex justify-between font-bold text-xs text-emerald-900">
-                  <span>💊 Pharmacie Akwa Centre</span>
-                  <span>À 0.8 km (Ouvert 24/7)</span>
+              ${hasPharmacies ? this.realPharmacies.map(p => {
+                const isSelected = selectedPharm && selectedPharm.name === p.name;
+                const distanceStr = p.distance < 1 ? `${Math.round(p.distance * 1000)} m` : `${p.distance.toFixed(1)} km`;
+                return `
+                  <div onclick="window.app.tunnelData.step2_pharmacy={name:'${p.name.replace(/'/g, "\\'")}', address:'${p.address.replace(/'/g, "\\'")}'}; window.app.showToast('Officine sélectionnée : ${p.name.replace(/'/g, "\\'")}'); window.app.navigateTo('tunnel');" 
+                       class="p-4 rounded-xl border-2 cursor-pointer transition flex justify-between items-center ${isSelected ? 'border-[#6B125C] bg-pink-50/50' : 'border-slate-200 bg-slate-50 hover:border-pink-200'}">
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <span class="font-bold text-xs text-slate-800">💊 ${p.name}</span>
+                        ${isSelected ? '<span class="px-2 py-0.5 bg-[#6B125C] text-white text-[10px] font-bold rounded-full">Sélectionnée</span>' : ''}
+                      </div>
+                      <p class="text-[11px] text-slate-500 mt-1">${p.address || 'Adresse non renseignée'}</p>
+                    </div>
+                    <span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200 shrink-0">À ${distanceStr}</span>
+                  </div>
+                `;
+              }).join('') : `
+                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <div class="flex justify-between font-bold text-xs text-emerald-900">
+                    <span>💊 Pharmacie de Garde Référencée - ${this.currentCity}</span>
+                    <span>Service 24h/24</span>
+                  </div>
+                  <p class="text-[11px] text-emerald-700 mt-1">Officine partenaire centrale Allo Ramia à ${this.currentCity}</p>
                 </div>
-                <p class="text-[11px] text-emerald-700 mt-1">Boulevard de la Liberté, Douala Cameroun</p>
-              </div>
-              <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer" onclick="window.app.tunnelData.step2_pharmacy='Pharmacie de la Référence'; window.app.showToast('Officine Référence sélectionnée');">
-                <div class="flex justify-between font-bold text-xs text-slate-800">
-                  <span>💊 Pharmacie de la Référence</span>
-                  <span>À 1.5 km</span>
-                </div>
-                <p class="text-[11px] text-slate-500 mt-1">Rue Kotto, Bonamoussadi, Douala</p>
-              </div>
+              `}
             </div>
+
             <div class="flex justify-between pt-4">
               <button onclick="window.app.setTunnelStep(1)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.setTunnelStep(3)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 3 (Mode de Récupération) →</button>
+              <button onclick="window.app.setTunnelStep(3)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 3 (Mode & Transport) →</button>
             </div>
           `;
         } else if (step === 3) {
+          // ÉTAPE 3 FUSIONNÉE : MODE DE RÉCUPÉRATION ET CHOIX DU TRANSPORTEUR PAR BOUTONS RADIO
+          const currentMode = this.tunnelData.step3_recoveryMode;
+          const currentTransportType = this.tunnelData.step4_transport?.type || 'yango_moto';
+
           return `
-            <h3 class="font-bold text-slate-800 text-sm">Étape 3 : Mode de Récupération (Routing Bimodal)</h3>
-            <p class="text-xs text-slate-500">Souhaitez-vous une livraison express à domicile ou un retrait directement sur place en officine ?</p>
+            <h3 class="font-bold text-slate-800 text-sm">Étape 3 : Mode de Récupération & Choix du Transporteur</h3>
+            <p class="text-xs text-slate-500">Choisissez le mode de réception des médicaments et le transporteur adapté :</p>
+            
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div onclick="window.app.tunnelData.step3_recoveryMode='LIVRAISON'; window.app.showToast('Mode Livraison sélectionné');" class="p-5 rounded-2xl border-2 ${this.tunnelData.step3_recoveryMode === 'LIVRAISON' ? 'border-[#6B125C] bg-pink-50/50' : 'border-slate-200'} cursor-pointer space-y-2">
+              <!-- Option A : Livraison Express -->
+              <div onclick="window.app.tunnelData.step3_recoveryMode='LIVRAISON'; window.app.saveState(); window.app.navigateTo('tunnel');" 
+                   class="p-4 rounded-2xl border-2 cursor-pointer transition space-y-2 ${currentMode === 'LIVRAISON' ? 'border-[#6B125C] bg-pink-50/40' : 'border-slate-200'}">
                 <div class="flex items-center space-x-2 text-[#6B125C] font-bold text-xs">
-                  <i class="fa-solid fa-truck-fast text-lg"></i>
+                  <input type="radio" name="recovery_mode" ${currentMode === 'LIVRAISON' ? 'checked' : ''} class="accent-[#6B125C]">
+                  <i class="fa-solid fa-truck-fast text-base"></i>
                   <span>Livraison Express à Domicile</span>
                 </div>
-                <p class="text-[11px] text-slate-600">Un livreur partenaire prend en charge votre commande et la livre au destinataire en 30-45 minutes.</p>
+                <p class="text-[11px] text-slate-600 pl-6">Un coursier partenaire livre les médicaments au destinataire en 30-45 min.</p>
               </div>
-              <div onclick="window.app.tunnelData.step3_recoveryMode='RETRAIT'; window.app.showToast('Mode Retrait sélectionné');" class="p-5 rounded-2xl border-2 ${this.tunnelData.step3_recoveryMode === 'RETRAIT' ? 'border-[#6B125C] bg-pink-50/50' : 'border-slate-200'} cursor-pointer space-y-2">
+
+              <!-- Option B : Retrait en Pharmacie -->
+              <div onclick="window.app.tunnelData.step3_recoveryMode='RETRAIT'; window.app.tunnelData.step4_transport={type:'retrait', name:'Retrait sur place', price:0}; window.app.saveState(); window.app.navigateTo('tunnel');" 
+                   class="p-4 rounded-2xl border-2 cursor-pointer transition space-y-2 ${currentMode === 'RETRAIT' ? 'border-[#6B125C] bg-pink-50/40' : 'border-slate-200'}">
                 <div class="flex items-center space-x-2 text-emerald-700 font-bold text-xs">
-                  <i class="fa-solid fa-store text-lg"></i>
+                  <input type="radio" name="recovery_mode" ${currentMode === 'RETRAIT' ? 'checked' : ''} class="accent-[#6B125C]">
+                  <i class="fa-solid fa-store text-base"></i>
                   <span>Retrait Direct sur Place en Pharmacie</span>
                 </div>
-                <p class="text-[11px] text-slate-600">Le bénéficiaire se déplace en pharmacie avec son code QR et récupère le colis sans frais de port.</p>
+                <p class="text-[11px] text-slate-600 pl-6">Le bénéficiaire retire le colis sur place sans aucun frais de transport (0 FCFA).</p>
               </div>
             </div>
+
+            <!-- SELECTION DU TRANSPORTEUR PAR BOUTONS RADIO (Visible uniquement si Livraison) -->
+            ${currentMode === 'LIVRAISON' ? `
+              <div class="pt-3 border-t border-slate-100 space-y-3">
+                <label class="font-bold text-xs text-slate-800 block">Choisissez votre transporteur partenaire :</label>
+                
+                <div class="space-y-2">
+                  <!-- Radio 1 : Yango Moto -->
+                  <label onclick="window.app.selectTransportOption('yango_moto', 'Yango Moto Express', 1000)" 
+                         class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentTransportType === 'yango_moto' ? 'border-[#6B125C] bg-pink-50/20' : 'border-slate-200 hover:border-pink-200'}">
+                    <div class="flex items-center space-x-3">
+                      <input type="radio" name="transport_choice" ${currentTransportType === 'yango_moto' ? 'checked' : ''} class="accent-[#6B125C]">
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-800">🛵 Yango Moto Express <span class="text-[10px] text-emerald-600 font-semibold">(Meilleur Choix)</span></h4>
+                        <p class="text-[11px] text-slate-500">Livraison moto ultra-rapide - ~25 min</p>
+                      </div>
+                    </div>
+                    <span class="font-extrabold text-xs text-[#6B125C]">1 000 ${currencyLabel}</span>
+                  </label>
+
+                  <!-- Radio 2 : Gozem -->
+                  <label onclick="window.app.selectTransportOption('gozem', 'Gozem Logistics', 1200)" 
+                         class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentTransportType === 'gozem' ? 'border-[#6B125C] bg-pink-50/20' : 'border-slate-200 hover:border-pink-200'}">
+                    <div class="flex items-center space-x-3">
+                      <input type="radio" name="transport_choice" ${currentTransportType === 'gozem' ? 'checked' : ''} class="accent-[#6B125C]">
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-800">🏍️ Gozem Logistics</h4>
+                        <p class="text-[11px] text-slate-500">Caisson isotherme & zones périurbaines</p>
+                      </div>
+                    </div>
+                    <span class="font-extrabold text-xs text-[#6B125C]">1 200 ${currencyLabel}</span>
+                  </label>
+
+                  <!-- Radio 3 : Yango Taxi -->
+                  <label onclick="window.app.selectTransportOption('yango_taxi', 'Yango Taxi Confort', 1500)" 
+                         class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentTransportType === 'yango_taxi' ? 'border-[#6B125C] bg-pink-50/20' : 'border-slate-200 hover:border-pink-200'}">
+                    <div class="flex items-center space-x-3">
+                      <input type="radio" name="transport_choice" ${currentTransportType === 'yango_taxi' ? 'checked' : ''} class="accent-[#6B125C]">
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-800">🚕 Yango Taxi Confort (Voiture)</h4>
+                        <p class="text-[11px] text-slate-500">Recommandé pour gros colis ou fioles fragiles</p>
+                      </div>
+                    </div>
+                    <span class="font-extrabold text-xs text-[#6B125C]">1 500 ${currencyLabel}</span>
+                  </label>
+                </div>
+              </div>
+            ` : ''}
+
             <div class="flex justify-between pt-4">
               <button onclick="window.app.setTunnelStep(2)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.setTunnelStep(4)" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 4 (Choix Transporteur) →</button>
+              <button onclick="window.app.saveState(); window.app.setTunnelStep(4);" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 4 (Destinataire) →</button>
             </div>
           `;
-        }  else if (step === 4) {
-          return `
-            <h3 class="font-bold text-slate-800 text-sm">Étape 4 : Choix du Transporteur & Tarification Bimodale</h3>
-            <p class="text-xs text-slate-500">Sélectionnez le mode de livraison adapté avec des tarifs clairement différenciés :</p>
-            <div class="space-y-3">
-              
-              <!-- Option 1 : Yango Moto -->
-              <div onclick="window.app.tunnelData.step4_transport={type:'yango_moto', name:'Yango Moto Express', price:1000}; window.app.showToast('Yango Moto sélectionné (1 000 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
-                <div>
-                  <h4 class="font-bold text-xs text-slate-800">🛵 Yango Moto Express (Option « Meilleur Choix »)</h4>
-                  <p class="text-[11px] text-slate-500">Livraison ultra-rapide par coursier moto - ~25 min</p>
-                </div>
-                <span class="font-bold text-xs text-[#6B125C]">1 000 ${currencyLabel}</span>
-              </div>
-
-              <!-- Option 2 : Gozem -->
-              <div onclick="window.app.tunnelData.step4_transport={type:'gozem', name:'Gozem Logistics', price:1200}; window.app.showToast('Gozem sélectionné (1 200 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
-                <div>
-                  <h4 class="font-bold text-xs text-slate-800">🏍️ Gozem Course Sécurisée</h4>
-                  <p class="text-[11px] text-slate-500">Couverture étendue zones périurbaines & caisson sécurisé</p>
-                </div>
-                <span class="font-bold text-xs text-[#6B125C]">1 200 ${currencyLabel}</span>
-              </div>
-
-              <!-- Option 3 : Yango Taxi -->
-              <div onclick="window.app.tunnelData.step4_transport={type:'yango_taxi', name:'Yango Taxi Confort', price:1500}; window.app.showToast('Yango Taxi sélectionné (1 500 FCFA)');" class="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-[#6B125C] transition">
-                <div>
-                  <h4 class="font-bold text-xs text-slate-800">🚕 Yango Taxi Confort (Voiture)</h4>
-                  <p class="text-[11px] text-slate-500">Idéal pour les gros volumes de médicaments ou produits fragiles</p>
-                </div>
-                <span class="font-bold text-xs text-[#6B125C]">1 500 ${currencyLabel}</span>
-              </div>
-
-            </div>
-            <div class="flex justify-between pt-4">
-              <button onclick="window.app.setTunnelStep(3)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.saveState(); window.app.setTunnelStep(5);" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 5 (Destinataire) →</button>
-            </div>
-          `;
-        } else if (step === 5) {
+        } else if (step === 4) {
+          // ÉTAPE 4 : DESTINATAIRE
           const countryPrefix = (this.countryData[this.currentCountry] || {}).phonePrefix || '+237';
           return `
-            <h3 class="font-bold text-slate-800 text-sm">Étape 5 : Coordonnées du Destinataire (Local ou Diaspora)</h3>
-            <p class="text-xs text-slate-500">Renseignez les informations de la personne qui recevra les médicaments sur place (Indicatif requis : ${countryPrefix}).</p>
+            <h3 class="font-bold text-slate-800 text-sm">Étape 4 : Coordonnées du Destinataire</h3>
+            <p class="text-xs text-slate-500">Renseignez les informations de la personne qui recevra ou retirera les médicaments (Indicatif : ${countryPrefix}).</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <input type="text" id="tunnel-name" placeholder="Nom complet du bénéficiaire" value="${this.tunnelData.step5_beneficiary.name}" onchange="window.app.tunnelData.step5_beneficiary.name = this.value" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
               <input type="tel" id="tunnel-phone" placeholder="Téléphone WhatsApp (${countryPrefix}...)" value="${this.tunnelData.step5_beneficiary.phone}" onchange="window.app.tunnelData.step5_beneficiary.phone = this.value" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1018,40 +1065,108 @@ init() {
             <textarea id="tunnel-address" placeholder="Adresse complète et repères visuels (ex: Face Boulangerie Akwa)..." onchange="window.app.tunnelData.step5_beneficiary.address = this.value" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs h-20">${this.tunnelData.step5_beneficiary.address}</textarea>
             
             <div class="flex justify-between pt-4">
-              <button onclick="window.app.setTunnelStep(4)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
-              <button onclick="window.app.validateAndProceedStep5()" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 6 (Récapitulatif) →</button>
+              <button onclick="window.app.setTunnelStep(3)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
+              <button onclick="window.app.validateAndProceedStep5()" class="px-6 py-2.5 bg-[#6B125C] text-white text-xs font-bold rounded-xl shadow">Étape 5 (Validation) →</button>
             </div>
           `;
-        } else if (step === 6) {
+        } else if (step === 5) {
+          // ÉTAPE 5 : RECAPITULATIF, PAIEMENT VISUEL & INTEGRATION API PAIEMENT
           const medTotal = this.cart.reduce((sum, item) => sum + item.price, 0);
           const serviceFee = Math.round(medTotal * 0.05);
           const transportFee = this.tunnelData.step3_recoveryMode === 'LIVRAISON' ? (this.tunnelData.step4_transport?.price || 1000) : 0;
           const grandTotal = medTotal + serviceFee + transportFee;
+          
+          const currentPayMethod = this.tunnelData.step6_payment.method || 'MOBILE_MONEY_MTN';
 
           return `
-            <h3 class="font-bold text-slate-800 text-sm">Étape 6 : Récapitulatif Devis V5 & Transmission WhatsApp</h3>
+            <h3 class="font-bold text-slate-800 text-sm">Étape 5 : Récapitulatif Devis V5 & Paiement Sécurisé</h3>
+            
             <div class="bg-pink-50/60 p-4 rounded-xl border border-pink-100 space-y-2 text-xs">
               <div class="flex justify-between text-slate-700"><span>Sous-total Médicaments :</span><span>${medTotal.toLocaleString()} ${currencyLabel}</span></div>
               <div class="flex justify-between text-slate-700"><span>Frais Service Allo Ramia (5 %) :</span><span>${serviceFee.toLocaleString()} ${currencyLabel}</span></div>
-              <div class="flex justify-between text-slate-700"><span>Frais de Transport (${this.tunnelData.step4_transport?.name || 'Standard'}) :</span><span>${transportFee.toLocaleString()} ${currencyLabel}</span></div>
+              <div class="flex justify-between text-slate-700"><span>Frais de Transport (${this.tunnelData.step3_recoveryMode === 'LIVRAISON' ? (this.tunnelData.step4_transport?.name || 'Standard') : 'Retrait gratuit'}) :</span><span>${transportFee.toLocaleString()} ${currencyLabel}</span></div>
               <div class="flex justify-between font-extrabold text-sm text-[#6B125C] pt-2 border-t border-pink-200">
-                <span>TOTAL A PAYER :</span>
+                <span>TOTAL GÉNÉRAL :</span>
                 <span>${grandTotal.toLocaleString()} ${currencyLabel}</span>
               </div>
             </div>
 
-            <div class="space-y-2 text-xs">
-              <label class="font-bold text-slate-800">Mode de Règlement Sélectionné :</label>
-              <select onchange="window.app.tunnelData.step6_payment.method = this.value" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold">
-                <option value="PAYER_LIVRAISON_CASH">Espèces à la livraison / Retrait sur place</option>
-                <option value="MOBILE_MONEY">Orange Money / MTN Mobile Money (Cameroun & Inter)</option>
-                <option value="STRIPE_CARD">Carte Visa / Mastercard (Mode Diaspora International)</option>
-              </select>
+            <!-- MODES DE PAIEMENT VISUELS AVEC BOUTONS RADIO & LOGOS -->
+            <div class="space-y-3 pt-2">
+              <label class="font-bold text-xs text-slate-800 block">Choisissez votre mode de règlement :</label>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                
+                <!-- 1. MTN Mobile Money -->
+                <label onclick="window.app.selectPaymentMethod('MOBILE_MONEY_MTN')" 
+                       class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentPayMethod === 'MOBILE_MONEY_MTN' ? 'border-amber-500 bg-amber-50/20 shadow-sm' : 'border-slate-200 hover:border-slate-300'}">
+                  <div class="flex items-center space-x-3">
+                    <input type="radio" name="payment_method" ${currentPayMethod === 'MOBILE_MONEY_MTN' ? 'checked' : ''} class="accent-amber-500">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-8 h-8 rounded-lg bg-yellow-400 text-slate-900 font-black flex items-center justify-center text-xs shadow">MTN</span>
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-900">MTN Mobile Money</h4>
+                        <p class="text-[10px] text-slate-500">Paiement instantané sécurisé</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <!-- 2. Orange Money -->
+                <label onclick="window.app.selectPaymentMethod('MOBILE_MONEY_ORANGE')" 
+                       class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentPayMethod === 'MOBILE_MONEY_ORANGE' ? 'border-orange-500 bg-orange-50/20 shadow-sm' : 'border-slate-200 hover:border-slate-300'}">
+                  <div class="flex items-center space-x-3">
+                    <input type="radio" name="payment_method" ${currentPayMethod === 'MOBILE_MONEY_ORANGE' ? 'checked' : ''} class="accent-orange-500">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-8 h-8 rounded-lg bg-orange-500 text-white font-black flex items-center justify-center text-xs shadow">OM</span>
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-900">Orange Money</h4>
+                        <p class="text-[10px] text-slate-500">Paiement instantané sécurisé</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <!-- 3. Espèces à la livraison -->
+                <label onclick="window.app.selectPaymentMethod('PAYER_LIVRAISON_CASH')" 
+                       class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentPayMethod === 'PAYER_LIVRAISON_CASH' ? 'border-[#6B125C] bg-pink-50/20 shadow-sm' : 'border-slate-200 hover:border-slate-300'}">
+                  <div class="flex items-center space-x-3">
+                    <input type="radio" name="payment_method" ${currentPayMethod === 'PAYER_LIVRAISON_CASH' ? 'checked' : ''} class="accent-[#6B125C]">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-xs">💵</span>
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-900">Espèces / Cash</h4>
+                        <p class="text-[10px] text-slate-500">Paiement à la livraison ou retrait</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <!-- 4. Carte Bancaire (Diaspora) -->
+                <label onclick="window.app.selectPaymentMethod('STRIPE_CARD')" 
+                       class="flex items-center justify-between p-3.5 bg-white rounded-xl border-2 cursor-pointer transition ${currentPayMethod === 'STRIPE_CARD' ? 'border-[#6B125C] bg-pink-50/20 shadow-sm' : 'border-slate-200 hover:border-slate-300'}">
+                  <div class="flex items-center space-x-3">
+                    <input type="radio" name="payment_method" ${currentPayMethod === 'STRIPE_CARD' ? 'checked' : ''} class="accent-[#6B125C]">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">💳</span>
+                      <div>
+                        <h4 class="font-bold text-xs text-slate-900">Carte Bancaire</h4>
+                        <p class="text-[10px] text-slate-500">Visa / Mastercard (Diaspora)</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+              </div>
             </div>
 
-            <button onclick="window.app.finishTunnelWhatsApp(${grandTotal})" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2">
-              <i class="fa-brands fa-whatsapp text-lg"></i> Valider et Envoyer la Commande Structurée sur WhatsApp
-            </button>
+            <div class="flex justify-between pt-3">
+              <button onclick="window.app.setTunnelStep(4)" class="px-5 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">← Retour</button>
+              
+              <button onclick="window.app.initiatePaymentAndProcess(${grandTotal})" class="flex-1 ml-3 bg-emerald-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-lock text-sm"></i> Procéder au Paiement & Envoyer sur WhatsApp
+              </button>
+            </div>
           `;
         }
       }
@@ -1060,30 +1175,162 @@ init() {
         this.currentTunnelStep = stepNum;
         this.navigateTo('tunnel');
       }
-
-      finishTunnelWhatsApp(grandTotal) {
-        const currencyLabel = (this.countryData[this.currentCountry] || {}).currency || 'XAF';
+validateAndProceedStep5() {
         const beneficiary = this.tunnelData.step5_beneficiary;
         
-        let msg = `*COMMANDE OFFICIELLE ALLO RAMIA (TUNNEL V5)*\n\n`;
-        msg += `*Articles Commandés :*\n`;
-        this.cart.forEach((i, idx) => {
-          msg += `${idx + 1}. ${i.name} (${i.price} ${currencyLabel})\n`;
-        });
-        msg += `\n*Détails Tarifaires :*\n`;
-        msg += `- Mode : ${this.tunnelData.step3_recoveryMode}\n`;
-        msg += `- Transport : ${this.tunnelData.step4_transport?.name}\n`;
-        msg += `- *TOTAL GENERAL : ${grandTotal} ${currencyLabel}*\n\n`;
-        msg += `*Informations Beneficiaire :*\n`;
-        msg += `- Nom : ${beneficiary.name || 'Non renseigné'}\n`;
-        msg += `- Tel : ${beneficiary.phone || 'Non renseigné'}\n`;
-        msg += `- Adresse : ${beneficiary.address || 'Non renseignée'}\n`;
-        msg += `- Ville/Pays : ${this.currentCity}, ${this.currentCountry}\n`;
+        // 1. Vérification du nom
+        if (!beneficiary.name || beneficiary.name.trim() === '') {
+          this.showToast("Veuillez renseigner le nom complet du bénéficiaire.");
+          document.getElementById('tunnel-name')?.focus();
+          return;
+        }
 
-        window.open(`https://wa.me/237677550909?text=${encodeURIComponent(msg)}`, '_blank');
+        // 2. Vérification de la présence du téléphone
+        if (!beneficiary.phone || beneficiary.phone.trim() === '') {
+          this.showToast("Veuillez renseigner le numéro de téléphone WhatsApp.");
+          document.getElementById('tunnel-phone')?.focus();
+          return;
+        }
+
+        // 🛡️ 3. CONTRÔLE ET NETTOYAGE DU NUMÉRO DE TÉLÉPHONE
+        // On enlève les espaces, tirets, et parenthèses saisis par erreur par l'utilisateur
+        const cleanPhone = beneficiary.phone.replace(/[\s\-\(\)]/g, '');
+        
+        // Expression régulière : accepte un indicatif optionnel (+237, +242, etc.) suivi de 8 à 12 chiffres
+        const phoneRegex = /^(\+\d{1,4})?\d{8,12}$/;
+
+        if (!phoneRegex.test(cleanPhone)) {
+          this.showToast("⚠️ Numéro de téléphone invalide. Veuillez vérifier les chiffres ou l'indicatif.");
+          document.getElementById('tunnel-phone')?.focus();
+          return;
+        }
+
+        // 4. Vérification de l'adresse
+        if (!beneficiary.address || beneficiary.address.trim() === '') {
+          this.showToast("Veuillez renseigner l'adresse de livraison ou les repères.");
+          document.getElementById('tunnel-address')?.focus();
+          return;
+        }
+
+        // Tout est valide : sauvegarde et passage à l'étape 5
+        this.saveState();
+        this.setTunnelStep(5);
+        this.showToast("✓ Coordonnées et numéro validés avec succès !");
+      }
+	  selectPaymentMethod(methodKey) {
+        this.tunnelData.step6_payment.method = methodKey;
+        this.saveState();
+        this.navigateTo('tunnel');
       }
 
-      // 4. VUE SCAN ORDONNANCE IA
+      // 🔌 SQUELETTE D'API D'INTÉGRATION PAIEMENT MOBILE MONEY / PASSERELLE
+      async initiatePaymentAndProcess(grandTotal) {
+        const payMethod = this.tunnelData.step6_payment.method;
+        const currencyLabel = (this.countryData[this.currentCountry] || {}).currency || 'XAF';
+
+        // Si c'est un paiement Mobile Money (MTN ou Orange), on simule l'appel à l'API de l'intégrateur
+        if (payMethod === 'MOBILE_MONEY_MTN' || payMethod === 'MOBILE_MONEY_ORANGE') {
+          const operatorName = payMethod === 'MOBILE_MONEY_MTN' ? 'MTN Mobile Money' : 'Orange Money';
+          const beneficiaryPhone = this.tunnelData.step5_beneficiary.phone;
+
+          // Demande de confirmation du numéro de téléphone pour le débit
+          const confirmedPhone = prompt(`Paiement ${operatorName} de ${grandTotal.toLocaleString()} ${currencyLabel}.\nConfirmez le numéro de téléphone du compte à débiter :`, beneficiaryPhone);
+          
+          if (!confirmedPhone) {
+            this.showToast("Paiement annulé par l'utilisateur.");
+            return;
+          }
+
+          // Simulation d'affichage d'un loader de traitement API de l'intégrateur
+          this.showToast(`Connexion à l'API de paiement ${operatorName} en cours...`);
+          
+          try {
+            // SQUELETTE DE REQUÊTE API VERS L'INTÉGRATEUR (Ex: CinetPay, Notch Pay, Campay)
+            /*
+            const apiResponse = await fetch('https://api.integrateur-paiement.cm/v1/collect', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer YOUR_API_KEY' },
+              body: JSON.stringify({
+                amount: grandTotal,
+                currency: currencyLabel,
+                phone_number: confirmedPhone,
+                operator: payMethod,
+                description: "Commande de médicaments Allo Ramia"
+              })
+            });
+            const paymentResult = await apiResponse.json();
+            */
+
+            // Simulation d'une attente de validation USSD (Push USSD sur le téléphone du client)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Simulation d'un succès de paiement
+            this.tunnelData.step6_payment.status = 'SUCCESS';
+            this.showToast(`✓ Paiement ${operatorName} validé avec succès !`);
+
+          } catch (error) {
+            console.error("Erreur API Paiement :", error);
+            this.showToast("⚠️ Échec du paiement Mobile Money. Passage en mode Espèces à la livraison.");
+            this.tunnelData.step6_payment.method = 'PAYER_LIVRAISON_CASH';
+          }
+        }
+
+        // Une fois le paiement réglé ou validé, on déclenche la génération WhatsApp structurée
+        this.finishTunnelWhatsApp(grandTotal);
+      }
+
+finishTunnelWhatsApp(grandTotal) {
+        const currencyLabel = (this.countryData[this.currentCountry] || {}).currency || 'XAF';
+        const beneficiary = this.tunnelData.step5_beneficiary;
+        const paymentMethodLabel = {
+          'MOBILE_MONEY_MTN': 'MTN Mobile Money',
+          'MOBILE_MONEY_ORANGE': 'Orange Money',
+          'PAYER_LIVRAISON_CASH': 'Espèces à la livraison / Retrait sur place',
+          'STRIPE_CARD': 'Carte Bancaire (Mode Diaspora)'
+        }[this.tunnelData.step6_payment.method] || 'Non spécifié';
+        
+        let msg = `*🚀 NOUVELLE COMMANDE ALLO RAMIA (V5)*\n\n`;
+        msg += `*📦 Articles Commandés :*\n`;
+        this.cart.forEach((i, idx) => {
+          msg += `${idx + 1}. ${i.name} (Qté: ${i.qty || 1}) - *${(i.price * (i.qty || 1)).toLocaleString()} ${currencyLabel}*\n`;
+        });
+        
+        msg += `\n*🚚 Mode & Logistique :*\n`;
+        msg += `- Type : ${this.tunnelData.step3_recoveryMode}\n`;
+        msg += `- Transporteur : ${this.tunnelData.step4_transport?.name || 'Standard'}\n`;
+        
+        msg += `\n*💰 Détails Financiers :*\n`;
+        msg += `- Règlement : ${paymentMethodLabel}\n`;
+        msg += `- *TOTAL GÉNÉRAL : ${grandTotal.toLocaleString()} ${currencyLabel}*\n\n`;
+        
+        msg += `*👤 Coordonnées du Bénéficiaire :*\n`;
+        msg += `- Nom : ${beneficiary.name}\n`;
+        msg += `- Téléphone : ${beneficiary.phone}\n`;
+        msg += `- Adresse : ${beneficiary.address}\n`;
+        msg += `- Localisation : ${this.currentCity}, ${this.countryData[this.currentCountry]?.name || this.currentCountry}\n\n`;
+        msg += `_Envoyé via l'application Web Allo Ramia 24/7_`;
+
+        window.open(`https://wa.me/237677550909?text=${encodeURIComponent(msg)}`, '_blank');
+
+        // 🔄 RÉINITIALISATION COMPLÈTE POUR UNE NOUVELLE COMMANDE PROPRE
+        this.cart = [];
+        this.currentTunnelStep = 1;
+        this.tunnelData = {
+          step1_meds: [],
+          step2_pharmacy: null,
+          step3_recoveryMode: 'LIVRAISON',
+          step4_transport: { type: 'yango_moto', name: 'Yango Moto Express', price: 1000 },
+          step5_beneficiary: { name: '', phone: '', address: '', notes: '', senderCountry: 'France' },
+          step6_payment: { method: 'MOBILE_MONEY_MTN', status: 'PENDING' }
+        };
+        
+        this.saveState();       // Met à jour le localStorage (vide le panier et le tunnel)
+        this.updateCartBadge(); // Met à jour le compteur (revient à 0)
+        this.showToast("✓ Commande finalisée et panier réinitialisé !");
+        this.navigateTo('home');
+      }
+     
+// 4. VUE SCAN ORDONNANCE IA (AVEC INDISPONIBILITÉ & AJOUT MANUEL)
       renderOrdoView() {
         return `
           <div class="max-w-3xl mx-auto space-y-6">
@@ -1092,53 +1339,80 @@ init() {
                 <div class="w-12 h-12 rounded-2xl bg-pink-100 text-[#6B125C] flex items-center justify-center text-2xl font-bold">📄</div>
                 <div>
                   <h2 class="text-base font-bold text-[#6B125C]">Scan d'Ordonnance Médicale & Extraction IA</h2>
-                  <p class="text-xs text-slate-500">Numérisez ou téléversez votre ordonnance pour extraction et correction avant commande.</p>
+                  <p class="text-xs text-slate-500">Numérisez votre ordonnance. Les prix sont croisés avec le stock Laborex officiel.</p>
                 </div>
               </div>
 
+              <!-- Zone de Dépôt / Import -->
               <div class="border-2 border-dashed ${this.isOrdoLoading ? 'border-amber-400 bg-amber-50/50 cursor-wait' : 'border-pink-200 hover:border-[#6B125C] bg-pink-50/30 cursor-pointer'} rounded-2xl p-8 text-center transition" ${this.isOrdoLoading ? '' : 'onclick="document.getElementById(\'ordo-file-input\').click()"'}>
                 ${this.isOrdoLoading ? `
                   <div class="space-y-3">
                     <i class="fa-solid fa-circle-notch fa-spin text-4xl text-[#6B125C]"></i>
-                    <h3 class="text-sm font-bold text-slate-800">Extraction des noms et détails des médicaments en cours...</h3>
-                    <p class="text-xs text-slate-500">Veuillez patienter pendant que l'intelligence analyse l'ordonnance.</p>
+                    <h3 class="text-sm font-bold text-slate-800">Analyse IA et recherche dans le catalogue Laborex...</h3>
+                    <p class="text-xs text-slate-500">Veuillez patienter pendant le traitement.</p>
                   </div>
                 ` : `
                   <i class="fa-solid fa-cloud-arrow-up text-4xl text-[#6B125C] mb-3"></i>
                   <h3 class="text-sm font-bold text-slate-800">Cliquez ou déposez votre ordonnance ici</h3>
-                  <p class="text-xs text-slate-500 mt-1">Formats supportés : JPG, PNG, PDF (Reconnaissance optique active)</p>
+                  <p class="text-xs text-slate-500 mt-1">Formats supportés : JPG, PNG, PDF</p>
                 `}
                 <input type="file" id="ordo-file-input" class="hidden" onchange="window.app.handleOrdoUpload(event)" ${this.isOrdoLoading ? 'disabled' : ''}>
               </div>
 
+              <!-- Résultats de la détection -->
               <div id="ordo-results-container" class="${this.detectedMedsList.length > 0 ? '' : 'hidden'} space-y-4">
-                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
-                  <div class="flex items-center space-x-3">
-                    <i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i>
-                    <div>
-                      <h4 class="text-xs font-bold text-emerald-900">Analyse de l'Ordonnance Réussie</h4>
-                      <p class="text-[11px] text-emerald-700">Vérifiez les lignes lues ci-dessous, modifiez ou supprimez si nécessaire avant d'ajouter au panier.</p>
-                    </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 class="text-xs font-bold text-slate-800">Résultat de l'analyse d'ordonnance</h4>
+                    <p class="text-[11px] text-slate-500">Vérifiez la liste ci-dessous avant d'ajouter votre commande au panier.</p>
                   </div>
+
+                  <!-- BOUTON : Ajouter un médicament manuellement -->
+                  <button onclick="window.app.addNewManualMedRow()" class="bg-[#6B125C] text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow hover:bg-pink-800 transition flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-plus text-xs"></i> Ajouter un médicament manuellement
+                  </button>
                 </div>
 
+                <!-- Liste dynamique des médicaments extraits -->
                 <div class="space-y-3" id="detected-meds-list">
-                  ${this.detectedMedsList.map((med, index) => `
-                    <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <span class="text-xs font-bold text-[#6B125C] w-6">${index + 1}.</span>
-                      <input type="text" value="${med.name}" onchange="window.app.updateDetectedMedName(${index}, this.value)" class="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg font-semibold text-slate-800" placeholder="Nom du médicament">
-                      <input type="number" value="${med.price}" onchange="window.app.updateDetectedMedPrice(${index}, this.value)" class="w-28 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg font-semibold text-[#6B125C]" placeholder="Prix TTC">
-                      <span class="text-xs text-slate-500">FCFA</span>
-                      <button onclick="window.app.removeDetectedMed(${index})" class="text-red-500 hover:text-red-700 p-1.5" title="Supprimer cette ligne">
-                        <i class="fa-solid fa-trash text-xs"></i>
-                      </button>
-                    </div>
-                  `).join('')}
+                  ${this.detectedMedsList.map((med, index) => {
+                    if (med.available) {
+                      return `
+                        <div class="flex items-center gap-2 bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
+                          <span class="text-xs font-bold text-emerald-800 w-6">${index + 1}.</span>
+                          <input type="text" value="${med.name}" onchange="window.app.updateDetectedMedName(${index}, this.value)" class="flex-1 px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg font-semibold text-slate-800" placeholder="Nom du médicament">
+                          <input type="number" value="${med.price}" onchange="window.app.updateDetectedMedPrice(${index}, this.value)" class="w-28 px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg font-bold text-[#6B125C]" placeholder="Prix TTC">
+                          <span class="text-xs font-bold text-slate-600">FCFA</span>
+                          <button onclick="window.app.removeDetectedMed(${index})" class="text-red-500 hover:text-red-700 p-1.5" title="Supprimer">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                          </button>
+                        </div>
+                      `;
+                    } else {
+                      return `
+                        <div class="p-3 bg-amber-50/80 rounded-xl border border-amber-200 space-y-2">
+                          <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-amber-800 w-6">${index + 1}.</span>
+                            <input type="text" value="${med.name}" onchange="window.app.updateDetectedMedName(${index}, this.value)" class="flex-1 px-3 py-1.5 text-xs bg-white border border-amber-300 rounded-lg font-semibold text-slate-800" placeholder="Nom du médicament">
+                            <button onclick="window.app.removeDetectedMed(${index})" class="text-red-500 hover:text-red-700 p-1.5" title="Supprimer">
+                              <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                          </div>
+                          
+                          <!-- MESSAGE D'AVERTISSEMENT SPÉCIFIQUE -->
+                          <div class="flex items-start gap-2 text-[11px] text-amber-900 bg-amber-100/70 p-2 rounded-lg font-medium">
+                            <i class="fa-solid fa-circle-exclamation text-amber-600 text-sm mt-0.5"></i>
+                            <span>Ce médicament (<strong>${med.name}</strong>) n'a pas été trouvé dans le catalogue Laborex. Il n'est pas disponible dans cette pharmacie. Veuillez contacter une autre pharmacie ou notre service de garde SOS.</span>
+                          </div>
+                        </div>
+                      `;
+                    }
+                  }).join('')}
                 </div>
 
                 <div class="flex justify-end gap-3 pt-2">
                   <button onclick="window.app.addDetectedToCart()" class="bg-[#6B125C] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow hover:bg-pink-800 transition flex items-center gap-2">
-                    <i class="fa-solid fa-cart-plus"></i> Ajouter les médicaments validés au Panier
+                    <i class="fa-solid fa-cart-plus"></i> Ajouter les médicaments disponibles au Panier
                   </button>
                 </div>
               </div>
@@ -1147,7 +1421,37 @@ init() {
         `;
       }
 
-      async handleOrdoUpload(event) {
+      // Action 1 : Ajouter manuellement une nouvelle ligne
+      addNewManualMedRow() {
+        this.detectedMedsList.push({
+          name: "",
+          price: 0,
+          available: true,
+          note: "Ajouté manuellement par l'utilisateur"
+        });
+        this.navigateTo('ordo');
+        this.showToast("Une nouvelle ligne a été ajoutée.");
+      }
+
+      // Action 2 : Ajouter uniquement les médicaments valides et disponibles au panier
+      addDetectedToCart() {
+        const availableMeds = this.detectedMedsList.filter(m => m.available && m.name.trim() !== '' && m.price > 0);
+        
+        if (availableMeds.length === 0) {
+          this.showToast("⚠️ Aucun médicament disponible ou valide à ajouter au panier.");
+          return;
+        }
+
+        availableMeds.forEach(med => {
+          this.addToCart(med.name, med.price, 'Scan Ordonnance IA');
+        });
+
+        // Conserve uniquement les non-disponibles dans l'écran ou réinitialise
+        this.detectedMedsList = this.detectedMedsList.filter(m => !m.available);
+        this.navigateTo('panier');
+      }
+
+   async handleOrdoUpload(event) {
         const file = event.target.files && event.target.files[0];
         if (!file) return;
 
@@ -1166,7 +1470,7 @@ init() {
           const apiKey = "AIzaSyAkJB6hhLiF-2K_BfzjayR1Ll6WOJMm3wM";
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-          const promptText = "Analyse cette ordonnance médicale manuscrite. Ignore les en-têtes administratifs, le nom du patient et les dates. Extrais uniquement les noms stricts des médicaments prescrits (par exemple: Fenostrae, Trikorix, Dynamogen, Anphos). Ne retourne aucune posologie ni consigne. Retourne uniquement les noms des médicaments séparés par des virgules.";
+          const promptText = "Analyse cette ordonnance médicale manuscrite. Ignore les en-têtes administratifs, le nom du patient et les dates. Extrais uniquement les noms stricts des médicaments prescrits. Ne retourne aucune posologie ni consigne. Retourne uniquement les noms des médicaments séparés par des virgules.";
 
           const payload = {
             contents: [
@@ -1199,29 +1503,52 @@ init() {
             .filter(m => m.length > 2);
 
           if (extractedMeds.length > 0) {
-            this.detectedMedsList = extractedMeds.map(medName => ({
-              name: medName,
-              price: 2500
-            }));
-            this.showToast(`Succès : ${this.detectedMedsList.length} médicament(s) identifié(s) !`);
+            this.detectedMedsList = extractedMeds.map(medName => {
+              // 🔍 Recherche exacte ou partielle dans le catalogue Laborex
+              const catalogMatch = this.laborexCatalog.find(item => 
+                item.name.toLowerCase().includes(medName.toLowerCase()) ||
+                medName.toLowerCase().includes(item.name.toLowerCase())
+              );
+
+              if (catalogMatch) {
+                return {
+                  name: `${catalogMatch.code} - ${catalogMatch.name}`,
+                  price: catalogMatch.ttc,
+                  available: true,
+                  note: "Disponible en stock Laborex"
+                };
+              } else {
+                return {
+                  name: medName,
+                  price: 0,
+                  available: false,
+                  note: "Non trouvé dans le catalogue Laborex (Indisponible dans cette pharmacie)"
+                };
+              }
+            });
+            this.showToast(`Succès : ${this.detectedMedsList.length} médicament(s) analysé(s) !`);
           } else {
             this.detectedMedsList = [
-              { name: "Fenostrae sirop", price: 2500 },
-              { name: "Trikorix", price: 2500 },
-              { name: "Dynamogen amp", price: 2500 },
-              { name: "Anphos amp", price: 2500 }
+              { 
+                name: "Paracétamol 500mg", 
+                price: 500, 
+                available: true, 
+                note: "Disponible en stock Laborex" 
+              }
             ];
-            this.showToast("Ordonnance chargée (lignes pré-identifiées).");
+            this.showToast("Ordonnance chargée (ligne par défaut).");
           }
 
         } catch (error) {
           console.error("Erreur analyse IA :", error);
           this.showToast("Erreur de connexion avec l'IA.");
           this.detectedMedsList = [
-            { name: "Fenostrae sirop", price: 2500 },
-            { name: "Trikorix", price: 2500 },
-            { name: "Dynamogen amp", price: 2500 },
-            { name: "Anphos amp", price: 2500 }
+            { 
+              name: "Paracétamol 500mg", 
+              price: 500, 
+              available: true, 
+              note: "Disponible en stock Laborex" 
+            }
           ];
         } finally {
           this.isOrdoLoading = false;
@@ -1299,7 +1626,7 @@ init() {
       // 6. VUE PANIER & DEVIS COMPARATIF
       renderPanierView() {
         const currencyLabel = (this.countryData[this.currentCountry] || {}).currency || 'XAF';
-        const medTotal = this.cart.reduce((sum, item) => sum + item.price, 0);
+        const medTotal = this.cart.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
         const serviceFee = Math.round(medTotal * 0.05);
         const transportFee = this.cart.length > 0 ? 1000 : 0;
         const grandTotal = medTotal + serviceFee + transportFee;
@@ -1309,9 +1636,9 @@ init() {
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-brand-border space-y-5">
               <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                 <h2 class="text-base font-bold text-[#6B125C] flex items-center gap-2">
-                  <i class="fa-solid fa-cart-shopping"></i> Mon Panier Allo Ramia (${this.cart.length})
+                  <i class="fa-solid fa-cart-shopping"></i> Mon Panier Allo Ramia (${this.cart.reduce((s, i) => s + (i.qty || 1), 0)})
                 </h2>
-                ${this.cart.length > 0 ? `<button onclick="window.app.cart = []; window.app.updateCartBadge(); window.app.navigateTo('panier');" class="text-xs text-red-500 font-bold hover:underline">Vider</button>` : ''}
+                ${this.cart.length > 0 ? `<button onclick="window.app.cart = []; window.app.saveState(); window.app.updateCartBadge(); window.app.navigateTo('panier');" class="text-xs text-red-500 font-bold hover:underline">Vider</button>` : ''}
               </div>
 
               ${this.cart.length === 0 ? `
@@ -1327,11 +1654,11 @@ init() {
                     <div class="flex justify-between items-center p-3 bg-pink-50/40 rounded-xl text-xs border border-pink-100">
                       <div>
                         <h4 class="font-bold text-slate-800">${i.name}</h4>
-                        <p class="text-[10px] text-slate-500">Prix public TTC homologué</p>
+                        <p class="text-[10px] text-slate-500">Qté : <strong class="text-[#6B125C]">${i.qty || 1}</strong> | Prix unitaire TTC homologué</p>
                       </div>
                       <div class="flex items-center space-x-3">
-                        <span class="font-extrabold text-[#6B125C]">${i.price.toLocaleString()} ${currencyLabel}</span>
-                        <button onclick="window.app.removeFromCart(${i.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                        <span class="font-extrabold text-[#6B125C]">${(i.price * (i.qty || 1)).toLocaleString()} ${currencyLabel}</span>
+                        <button onclick="window.app.removeFromCart(${i.id})" class="text-red-500 hover:text-red-700" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
                       </div>
                     </div>
                   `).join('')}
@@ -1347,7 +1674,7 @@ init() {
                   </div>
 
                   <button onclick="window.app.setTunnelStep(1)" class="w-full bg-[#6B125C] text-white font-bold py-3.5 rounded-xl text-xs shadow-lg hover:bg-[#550e49] transition">
-                    Passer au Tunnel de Commande V5 (6 Étapes) →
+                    Passer au Tunnel de Commande V5 (5 Étapes) →
                   </button>
                 </div>
               `}
@@ -1378,10 +1705,19 @@ init() {
       }
 
       // FONCTIONS INTERNES D'ACTION & RECHERCHE REAL-TIME
-      addToCart(name, price, pharmacyName) {
-        this.cart.push({ id: Date.now(), name: `${name} (${pharmacyName})`, price: price, qty: 1 });
+  addToCart(name, price, pharmacyName) {
+        const itemName = `${name} (${pharmacyName})`;
+        const existingItem = this.cart.find(i => i.name === itemName && i.price === price);
+        
+        if (existingItem) {
+          existingItem.qty = (existingItem.qty || 1) + 1;
+        } else {
+          this.cart.push({ id: Date.now(), name: itemName, price: price, qty: 1 });
+        }
+
+        this.saveState();
         this.updateCartBadge();
-        this.showToast(`Ajouté au panier !`);
+        this.showToast(`✓ Ajouté au panier !`);
       }
 
       removeFromCart(id) {
@@ -1724,7 +2060,7 @@ init() {
         if (this.realPharmacies.length === 0) {
           pharmaciesContainer.innerHTML = `
             <div class="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl">
-              Aucune pharmacie trouvée dans ce rayon. Essayez d'élargir la zone ou de changer de quartier.
+              Aucune pharmacie trouvée dans ce rayon. Essayez d'élargir la zone ou de changer de quartier ou adresse de livraison .
             </div>
           `;
           return;
